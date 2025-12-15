@@ -187,6 +187,49 @@ The following assumptions were made while implementing this solution:
 
 ---
 
+## 🔮 Possible Enhancements (With More Time)
+
+Given more time, the following improvements could be implemented:
+
+* Distributed caching (e.g., Redis) for multi‑instance deployments
+* Observability: metrics, tracing, and structured logging (e.g., OpenTelemetry)
+* Circuit breaker policies and retries at the HTTP client level
+* Rate limiting at the API gateway level
+* API versioning and OpenAPI/Swagger documentation
+* Background refresh of cached data
+
+---
+
+## 🛡️ Error Handling, Resilience & Observability
+
+This solution includes resilience and observability concerns typically required for production services.
+
+### Resilience
+
+* **Timeouts** are configured for outbound HTTP calls via `HackerNewsOptions.Timeout`.
+* The outbound HTTP client can be configured with:
+
+  * **Retry policy** for transient failures (e.g., network glitches, temporary 5xx)
+  * **Circuit breaker** to stop hammering Hacker News during sustained failures
+
+> Note: Unit tests focus on business rules and HTTP boundary behavior. Retry/circuit breaker behavior is typically validated via focused integration tests and/or by observing logs/metrics.
+
+### Logging
+
+* Structured logging via `ILogger<T>` is used across the solution.
+* Key events are logged, for example:
+
+  * Fetching top N stories
+  * Cache misses for best IDs
+  * Item fetch failures (captured and handled gracefully)
+
+### Middleware
+
+* Standard ASP.NET Core middleware pipeline is used.
+* A global exception strategy translates failures into appropriate HTTP responses.
+
+---
+
 ## 📦 Running the Application
 
 ### Prerequisites
