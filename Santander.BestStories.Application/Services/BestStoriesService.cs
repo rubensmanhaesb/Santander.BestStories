@@ -1,4 +1,5 @@
 ﻿using Microsoft.Extensions.Caching.Memory;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Santander.BestStories.Application.Abstractions;
 using Santander.BestStories.Application.Dtos;
@@ -7,52 +8,83 @@ using Santander.BestStories.Application.Options;
 
 namespace Santander.BestStories.Application.Services;
 
-public sealed class BestStoriesService : IBestStoriesService
+public sealed partial class BestStoriesService : IBestStoriesService
 {
     private readonly IHackerNewsClient _client;
     private readonly IMemoryCache _cache;
     private readonly HackerNewsOptions _options;
+    private readonly ILogger<BestStoriesService> _logger;
 
     private const string BestIdsCacheKey = "hn:beststoryids";
 
     public BestStoriesService(
         IHackerNewsClient client,
         IMemoryCache cache,
-        IOptions<HackerNewsOptions> options)
+        IOptions<HackerNewsOptions> options,
+        ILogger<BestStoriesService> logger)
     {
         _client = client;
         _cache = cache;
         _options = options.Value;
+        _logger = logger;
     }
 
     public async Task<IReadOnlyList<BestStoryDto>> GetBestStoriesAsync(int n, CancellationToken ct = default)
     {
-        if (n <= 0) return Array.Empty<BestStoryDto>();
-        if (n > 200) n = 200; // limite defensivo
+        LogFetchingStories(_logger, n);
 
-        // 1) cache dos IDs
-        var ids = await _cache.GetOrCreateAsync(BestIdsCacheKey, async entry =>
+        if (n <= 0)
         {
+            LogInvalidN(_logger, n);
+            return Array.Empty<BestStoryDto>();
+        }
+
+        if (n > _options.MaxN)
+        {
+            LogCappedN(_logger, n, _options.MaxN);
+            n = _options.MaxN;
+        }
+
+        IReadOnlyList<long> ids;
+
+        // 1) Cache dos IDs
+        ids = await _cache.GetOrCreateAsync(BestIdsCacheKey, async entry =>
+        {
+            LogBestIdsCacheMiss(_logger);
+
             entry.AbsoluteExpirationRelativeToNow = _options.BestStoriesCacheTtl;
             return await _client.GetBestStoryIdsAsync(ct);
         }) ?? Array.Empty<long>();
 
-        // Para reduzir chamadas, pega um pool maior que n (tradeoff simples)
-        var take = Math.Min(ids.Count, Math.Max(n * 3, n));
+        if (ids.Count == 0)
+            return Array.Empty<BestStoryDto>();
+
+        // pool: min(poolMax, n * poolMultiplier, ids.Count)
+        var targetPool = n * _options.PoolMultiplier;
+        var take = Math.Min(ids.Count, Math.Min(_options.PoolMax, Math.Max(n, targetPool)));
         var slice = ids.Take(take).ToArray();
 
-        // 2) buscar itens com cache por item + concorrência limitada
         var gate = new SemaphoreSlim(_options.MaxConcurrentRequests, _options.MaxConcurrentRequests);
+
         var tasks = slice.Select(async id =>
         {
             await gate.WaitAsync(ct);
             try
             {
-                var itemKey = $"hn:item:{id}";
-                var item = await _cache.GetOrCreateAsync(itemKey, async entry =>
+                var cacheKey = $"hn:item:{id}";
+                var item = await _cache.GetOrCreateAsync(cacheKey, async entry =>
                 {
                     entry.AbsoluteExpirationRelativeToNow = _options.ItemCacheTtl;
-                    return await _client.GetItemAsync(id, ct);
+
+                    try
+                    {
+                        return await _client.GetItemAsync(id, ct);
+                    }
+                    catch (Exception ex)
+                    {
+                        LogItemFetchFailed(_logger, id, ex);
+                        return null;
+                    }
                 });
 
                 if (item is null) return null;
@@ -68,9 +100,11 @@ public sealed class BestStoriesService : IBestStoriesService
 
         var results = await Task.WhenAll(tasks);
 
-        return results
-            .Where(x => x is not null)
-            .Select(x => x!)
+        var filtered = results.Where(x => x is not null).Select(x => x!).ToList();
+
+        LogItemsFetched(_logger, filtered.Count);
+
+        return filtered
             .OrderByDescending(x => x.Score)
             .Take(n)
             .ToList();

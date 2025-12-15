@@ -11,6 +11,13 @@ public sealed class HackerNewsOptions
     public TimeSpan BestStoriesCacheTtl { get; set; } = TimeSpan.FromSeconds(30);
     public TimeSpan ItemCacheTtl { get; set; } = TimeSpan.FromMinutes(10);
 
-    // Controle de concorrência (por request)
+    // Limites/Perf
     public int MaxConcurrentRequests { get; set; } = 16;
+
+    // Pool (para pegar mais IDs que N e reduzir chamadas perdidas)
+    public int PoolMultiplier { get; set; } = 3;
+    public int PoolMax { get; set; } = 500;
+
+    // Limite do endpoint
+    public int MaxN { get; set; } = 200;
 }
