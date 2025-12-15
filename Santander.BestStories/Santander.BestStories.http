@@ -1,0 +1,6 @@
+@Santander.BestStories_HostAddress = http://localhost:5100
+
+GET {{Santander.BestStories_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###

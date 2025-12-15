@@ -1,0 +1,58 @@
+# Arquivos temporários
+*~
+*.swp
+
+# Arquivos de compilação
+*.dll
+*.exe
+*.pdb
+*.suo
+*.cache
+*.log
+*.vscode
+*.vs
+obj/
+bin/
+
+# Dependências
+/bin/
+/obj/
+/packages/
+
+# Arquivos de configuração
+*.config
+Web.config
+
+# Arquivos de usuário
+*.user
+*.suo
+*.sln.docstates
+
+# Logs e resultados de teste
+*.VisualState.xml
+TestResult.xml
+
+# Arquivos de publicação
+_PublishedWebsites/
+pubxml
+
+# Arquivos do Visual Studio
+*.user
+*.suo
+*.cache
+*.sln.docstates
+
+# Arquivos de registro
+*.log
+
+# Arquivos de backup do Visual Studio
+Backup*/
+
+# Pasta de arquivos temporários
+.vs/
+
+# Ignore test results
+**/TestResults/
+
+# Ignorar todos os arquivos README.md (em qualquer pasta)
+README.md
