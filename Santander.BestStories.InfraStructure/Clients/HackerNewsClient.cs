@@ -1,7 +1,7 @@
 ﻿using System.Net.Http.Json;
 using Microsoft.Extensions.Options;
 using Santander.BestStories.Application.Abstractions;
-using Santander.BestStories.Infrastructure.Options;
+using Santander.BestStories.Application.Options;
 
 namespace Santander.BestStories.Infrastructure.Clients;
 
