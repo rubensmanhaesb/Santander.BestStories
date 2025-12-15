@@ -1,5 +1,4 @@
-﻿using System.Net;
-using Microsoft.Extensions.Configuration;
+﻿using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -8,6 +7,7 @@ using Polly.Extensions.Http;
 using Santander.BestStories.Application.Abstractions;
 using Santander.BestStories.Application.Options;
 using Santander.BestStories.Infrastructure.Clients;
+using System.Net;
 
 namespace Santander.BestStories.Infrastructure.DependencyInjection;
 
@@ -23,7 +23,6 @@ public static class ServiceCollectionExtensions
             .Bind(configuration.GetSection(HackerNewsOptions.SectionName))
             .ValidateOnStart();
 
-        // ✅ Cria UMA policy (singleton) para manter estado do Circuit Breaker
         services.AddSingleton<IAsyncPolicy<HttpResponseMessage>>(sp =>
         {
             var opt = sp.GetRequiredService<IOptions<HackerNewsOptions>>().Value;
@@ -31,7 +30,6 @@ public static class ServiceCollectionExtensions
 
             var retry = BuildRetryPolicy(opt, logger);
 
-            // Observação: breaker OUTER e retry INNER -> breaker conta 1 falha por "chamada" (após retries)
             var breaker = BuildCircuitBreakerPolicy(opt, logger);
 
             return Policy.WrapAsync(breaker, retry);
@@ -44,7 +42,7 @@ public static class ServiceCollectionExtensions
             http.BaseAddress = new Uri(EnsureTrailingSlash(opt.BaseUrl), UriKind.Absolute);
             http.Timeout = opt.Timeout;
         })
-        // ✅ Tipagem explícita evita o overload errado (CS1929)
+
         .AddPolicyHandler((IServiceProvider sp, HttpRequestMessage _) =>
             sp.GetRequiredService<IAsyncPolicy<HttpResponseMessage>>());
 
@@ -56,7 +54,7 @@ public static class ServiceCollectionExtensions
         ILogger logger)
     {
         return HttpPolicyExtensions
-            .HandleTransientHttpError() // 5xx, 408, HttpRequestException
+            .HandleTransientHttpError() 
             .OrResult(r => r.StatusCode == HttpStatusCode.Unauthorized)
             .OrResult(r => r.StatusCode == HttpStatusCode.Forbidden)
             .OrResult(r => r.StatusCode == HttpStatusCode.TooManyRequests)

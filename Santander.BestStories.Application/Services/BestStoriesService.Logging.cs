@@ -40,7 +40,6 @@ public sealed partial class BestStoriesService
             new EventId(1005, "ItemFetchFailed"),
             "Failed to fetch item {ItemId}");
 
-    // Wrappers (evita “nome não existe” e fica fácil de chamar)
     private static void LogFetchingStories(ILogger logger, int n) => _fetchingStories(logger, n, null);
     private static void LogInvalidN(ILogger logger, int n) => _invalidN(logger, n, null);
     private static void LogCappedN(ILogger logger, int n, int maxN) => _cappedN(logger, n, maxN, null);

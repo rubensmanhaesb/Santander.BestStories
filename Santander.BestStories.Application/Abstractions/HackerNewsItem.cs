@@ -8,7 +8,7 @@ public sealed class HackerNewsItem
     public string? By { get; set; }
     public string? Title { get; set; }
     public string? Url { get; set; }
-    public long Time { get; set; }              // epoch seconds
+    public long Time { get; set; }              
     public int Score { get; set; }
-    public int? Descendants { get; set; }       // comment count
+    public int? Descendants { get; set; }       
 }

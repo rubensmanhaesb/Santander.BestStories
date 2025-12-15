@@ -47,7 +47,7 @@ public sealed partial class BestStoriesService : IBestStoriesService
 
         IReadOnlyList<long> ids;
 
-        // 1) Cache dos IDs
+        
         ids = await _cache.GetOrCreateAsync(BestIdsCacheKey, async entry =>
         {
             LogBestIdsCacheMiss(_logger);
@@ -59,7 +59,7 @@ public sealed partial class BestStoriesService : IBestStoriesService
         if (ids.Count == 0)
             return Array.Empty<BestStoryDto>();
 
-        // pool: min(poolMax, n * poolMultiplier, ids.Count)
+        
         var targetPool = n * _options.PoolMultiplier;
         var take = Math.Min(ids.Count, Math.Min(_options.PoolMax, Math.Max(n, targetPool)));
         var slice = ids.Take(take).ToArray();
