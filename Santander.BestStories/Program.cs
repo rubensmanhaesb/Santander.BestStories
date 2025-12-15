@@ -4,12 +4,16 @@ using Santander.BestStories.Infrastructure.DependencyInjection;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Controllers
+
 builder.Services.AddControllers();
 
-// Swagger — APENAS EM DEV
-builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen();
+
+if (builder.Environment.IsDevelopment())
+{
+    builder.Services.AddEndpointsApiExplorer();
+    builder.Services.AddSwaggerGen();
+}
+
 
 #region  Dependency Injection  
 
@@ -23,7 +27,6 @@ var app = builder.Build();
 
 app.UseMiddleware<GlobalExceptionMiddleware>();
 
-// Pipeline
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();

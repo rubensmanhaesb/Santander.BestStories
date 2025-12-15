@@ -1,5 +1,4 @@
 ﻿using Microsoft.AspNetCore.Mvc;
-using Santander.BestStories.Application.Abstractions;
 using Santander.BestStories.Application.Interfaces;
 
 namespace Santander.BestStories.Api.Controllers;
