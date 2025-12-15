@@ -191,12 +191,12 @@ The following assumptions were made while implementing this solution:
 
 Given more time, the following improvements could be implemented:
 
-* Distributed caching (e.g., Redis) for multi‑instance deployments
-* Observability: metrics, tracing, and structured logging (e.g., OpenTelemetry)
-* Circuit breaker policies and retries at the HTTP client level
+* Distributed caching (e.g., Redis) for multi-instance deployments
+* Enhanced observability: metrics and distributed tracing (e.g., OpenTelemetry)
 * Rate limiting at the API gateway level
 * API versioning and OpenAPI/Swagger documentation
-* Background refresh of cached data
+* Background refresh and cache invalidation strategies
+
 
 ---
 
@@ -206,11 +206,15 @@ This solution includes resilience and observability concerns typically required 
 
 ### Resilience
 
-* **Timeouts** are configured for outbound HTTP calls via `HackerNewsOptions.Timeout`.
-* The outbound HTTP client can be configured with:
+Outbound HTTP calls to the Hacker News API are protected at the HTTP client level.
 
-  * **Retry policy** for transient failures (e.g., network glitches, temporary 5xx)
-  * **Circuit breaker** to stop hammering Hacker News during sustained failures
+The HTTP client is configured to support:
+
+* **Timeouts** to prevent hanging requests
+* **Retry policies** for transient failures (e.g., network issues, temporary 5xx responses)
+* **Circuit breaker policies** to stop repeated calls during sustained external failures
+
+These policies are applied via `AddHttpClient`, keeping resilience concerns isolated in the infrastructure layer and out of business logic.
 
 > Note: Unit tests focus on business rules and HTTP boundary behavior. Retry/circuit breaker behavior is typically validated via focused integration tests and/or by observing logs/metrics.
 
