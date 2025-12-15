@@ -1,12 +1,14 @@
 ﻿namespace Santander.BestStories.Application.Abstractions;
 
-public sealed record HackerNewsItem(
-    long Id,
-    string? Type,
-    string? By,
-    long? Time,
-    string? Title,
-    string? Url,
-    int? Score,
-    int? Descendants
-);
+
+public sealed class HackerNewsItem
+{
+    public long Id { get; set; }
+    public string? Type { get; set; }
+    public string? By { get; set; }
+    public string? Title { get; set; }
+    public string? Url { get; set; }
+    public long Time { get; set; }              // epoch seconds
+    public int Score { get; set; }
+    public int? Descendants { get; set; }       // comment count
+}

@@ -1,10 +1,11 @@
-﻿namespace Santander.BestStories.Application.Dto;
+﻿namespace Santander.BestStories.Application.Dtos;
 
-public sealed record BestStoryDto(
-    string Title,
-    string Uri,
-    string PostedBy,
-    DateTimeOffset Time,
-    int Score,
-    int CommentCount
-);
+public sealed record BestStoryDto
+{
+    public string Title { get; init; } = "";
+    public string Uri { get; init; } = "";
+    public string PostedBy { get; init; } = "";
+    public DateTimeOffset Time { get; init; }
+    public int Score { get; init; }
+    public int CommentCount { get; init; }
+}

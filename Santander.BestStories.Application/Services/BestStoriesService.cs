@@ -1,68 +1,70 @@
-﻿using Santander.BestStories.Application.Abstractions;
-using Santander.BestStories.Application.Dto;
+﻿using Microsoft.Extensions.Caching.Memory;
+using Microsoft.Extensions.Options;
+using Santander.BestStories.Application.Abstractions;
+using Santander.BestStories.Application.Dtos;
 using Santander.BestStories.Application.Interfaces;
+using Santander.BestStories.Application.Options;
 
 namespace Santander.BestStories.Application.Services;
 
 public sealed class BestStoriesService : IBestStoriesService
 {
     private readonly IHackerNewsClient _client;
+    private readonly IMemoryCache _cache;
+    private readonly HackerNewsOptions _options;
 
-    public BestStoriesService(IHackerNewsClient client)
-        => _client = client;
+    private const string BestIdsCacheKey = "hn:beststoryids";
+
+    public BestStoriesService(
+        IHackerNewsClient client,
+        IMemoryCache cache,
+        IOptions<HackerNewsOptions> options)
+    {
+        _client = client;
+        _cache = cache;
+        _options = options.Value;
+    }
 
     public async Task<IReadOnlyList<BestStoryDto>> GetBestStoriesAsync(int n, CancellationToken ct = default)
     {
-        if (n <= 0) throw new ArgumentOutOfRangeException(nameof(n), "n must be greater than 0.");
-        if (n > 200) throw new ArgumentOutOfRangeException(nameof(n), "n must be <= 200.");
+        if (n <= 0) return Array.Empty<BestStoryDto>();
+        if (n > 200) n = 200; // limite defensivo
 
-        var ids = await _client.GetBestStoryIdsAsync(ct);
+        // 1) cache dos IDs
+        var ids = await _cache.GetOrCreateAsync(BestIdsCacheKey, async entry =>
+        {
+            entry.AbsoluteExpirationRelativeToNow = _options.BestStoriesCacheTtl;
+            return await _client.GetBestStoryIdsAsync(ct);
+        }) ?? Array.Empty<long>();
 
-        // pega um "pool" um pouco maior pra compensar itens nulos/deletados
+        // Para reduzir chamadas, pega um pool maior que n (tradeoff simples)
         var take = Math.Min(ids.Count, Math.Max(n * 3, n));
-        var candidates = ids.Take(take).ToArray();
+        var slice = ids.Take(take).ToArray();
 
-        // Concorrência limitada (evita martelar a HN API)
-        const int maxDop = 16;
-        using var gate = new SemaphoreSlim(maxDop);
-
-        var tasks = candidates.Select(async id =>
+        // 2) buscar itens com cache por item + concorrência limitada
+        var gate = new SemaphoreSlim(_options.MaxConcurrentRequests, _options.MaxConcurrentRequests);
+        var tasks = slice.Select(async id =>
         {
             await gate.WaitAsync(ct);
             try
             {
-                var item = await _client.GetItemAsync(id, ct);
+                var itemKey = $"hn:item:{id}";
+                var item = await _cache.GetOrCreateAsync(itemKey, async entry =>
+                {
+                    entry.AbsoluteExpirationRelativeToNow = _options.ItemCacheTtl;
+                    return await _client.GetItemAsync(id, ct);
+                });
+
                 if (item is null) return null;
+                if (!string.Equals(item.Type, "story", StringComparison.OrdinalIgnoreCase)) return null;
 
-                // só queremos stories
-                if (!string.Equals(item.Type, "story", StringComparison.OrdinalIgnoreCase))
-                    return null;
-
-                // alguns campos podem vir nulos
-                var title = item.Title ?? string.Empty;
-                var uri = item.Url ?? string.Empty;
-                var postedBy = item.By ?? string.Empty;
-
-                var epoch = item.Time ?? 0;
-                var time = DateTimeOffset.FromUnixTimeSeconds(epoch);
-
-                var score = item.Score ?? 0;
-                var commentCount = item.Descendants ?? 0;
-
-                return new BestStoryDto(
-                    Title: title,
-                    Uri: uri,
-                    PostedBy: postedBy,
-                    Time: time,
-                    Score: score,
-                    CommentCount: commentCount
-                );
+                return MapToDto(item);
             }
             finally
             {
                 gate.Release();
             }
-        });
+        }).ToArray();
 
         var results = await Task.WhenAll(tasks);
 
@@ -72,5 +74,20 @@ public sealed class BestStoriesService : IBestStoriesService
             .OrderByDescending(x => x.Score)
             .Take(n)
             .ToList();
+    }
+
+    private static BestStoryDto MapToDto(HackerNewsItem item)
+    {
+        var time = DateTimeOffset.FromUnixTimeSeconds(item.Time);
+
+        return new BestStoryDto
+        {
+            Title = item.Title ?? "",
+            Uri = item.Url ?? "",
+            PostedBy = item.By ?? "",
+            Time = time,
+            Score = item.Score,
+            CommentCount = item.Descendants ?? 0
+        };
     }
 }
