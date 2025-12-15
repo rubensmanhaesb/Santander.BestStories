@@ -177,13 +177,15 @@ Why no heavy mocking framework?
 
 The following assumptions were made while implementing this solution:
 
-* The **Hacker News public API** is the single source of truth for story data.
-* The external API may be slow or unavailable; therefore, **caching and concurrency limits** are mandatory.
+* The Hacker News public API is the single source of truth for story data.
+* The external API may be slow or temporarily unavailable; therefore, caching and concurrency limits are mandatory.
 * The API consumer should not be able to overload the system; input is capped via `MaxN`.
-* HTTP errors (404, 500) from Hacker News are propagated as exceptions from the infrastructure layer and handled gracefully at higher layers.
-* Story timestamps are returned in **ISO 8601 string format**, derived from Unix timestamps.
-* This service is **read‑only** and does not persist data beyond in‑memory caching.
-* The application is expected to run in a **stateless environment** (e.g., container or cloud service).
+* Outbound HTTP calls are protected with resilience policies (retry, timeout, and circuit breaker) at the HTTP client level.
+* Individual item fetch failures are tolerated (logged and skipped) so the API can still return partial results when appropriate.
+* Story timestamps are returned in ISO 8601 format, derived from Unix timestamps.
+* This service is read-only and does not persist data beyond in-memory caching.
+* The application is expected to run in a stateless environment (e.g., container or cloud service).
+
 
 ---
 
