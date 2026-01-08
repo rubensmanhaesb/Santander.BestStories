@@ -51,6 +51,7 @@ Santander.BestStories
 * Business rules isolated from infrastructure
 * Application layer fully testable without HTTP calls
 * External dependencies easily replaceable
+* Ready for containerized and cloud-based execution
 
 ---
 
@@ -229,6 +230,19 @@ These policies are applied via `AddHttpClient`, keeping resilience concerns isol
   * Cache misses for best IDs
   * Item fetch failures (captured and handled gracefully)
 
+### In-memory caching
+
+The application uses **in-memory caching** (`IMemoryCache`) to reduce unnecessary calls to the Hacker News public API and improve response times.
+
+Caching is applied to:
+
+* The list of best story IDs
+* Individual story details
+
+Each cache entry uses a configurable **Time-To-Live (TTL)** defined in `HackerNewsOptions`, allowing fine-grained control over freshness versus performance.
+
+This approach is suitable for a **single-instance or stateless container** scenario and can be easily replaced by a distributed cache (e.g., Redis) if required.
+
 ### Middleware
 
 * Standard ASP.NET Core middleware pipeline is used.
@@ -238,24 +252,37 @@ These policies are applied via `AddHttpClient`, keeping resilience concerns isol
 
 ## 📦 Running the Application
 
+### Run with Docker (recommended)
+
+The application is fully containerized and can be executed using Docker and Docker Compose, providing a production-like, stateless runtime environment aligned with real-world deployments.
+
+```bash
+docker compose up --build
+```
+
+Once the container is running, the API will be available at:
+
+http://localhost:8080/api/stories/best?n=10
+
+ The `n` query parameter controls how many top stories are returned and is capped by the configured `MaxN` value.
+
 ### Prerequisites
 
 * .NET SDK 9
+* Docker + Docker Compose (for containerized execution)
 
-### Run locally
+#### Run locally
 
 ```bash
 dotnet restore
 dotnet build
 dotnet run --project Santander.BestStories.Api
 ```
-
 ### Run tests
 
 ```bash
 dotnet test
 ```
-
 ---
 
 ## 🧩 Design Rationale
